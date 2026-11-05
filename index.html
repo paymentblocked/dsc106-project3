@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shifting Temperatures</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Shifting Temperatures</h1>
+      <p class="question">Where on Earth is warming fastest, and how much does our emissions path change that by 2100?</p>
+    </header>
+
+    <section class="controls" aria-label="Map controls">
+      <div class="scenario" role="group" aria-label="Emissions scenario">
+        <span class="label">Emissions path</span>
+        <button data-scenario="ssp126" aria-pressed="false">Low (SSP1-2.6)</button>
+        <button data-scenario="ssp585" aria-pressed="true">High (SSP5-8.5)</button>
+      </div>
+      <div class="time">
+        <button id="play" aria-label="Play animation">▶ Play</button>
+        <input id="year" type="range" min="1850" max="2100" step="1" value="2100" aria-label="Year">
+        <span id="year-label" class="year-label">2100</span>
+      </div>
+    </section>
+
+    <p id="readout" class="readout"></p>
+
+    <div class="map-wrap">
+      <svg id="map" role="img" aria-label="World map of temperature change"></svg>
+      <div id="tooltip" class="tooltip" hidden></div>
+    </div>
+    <div id="legend"></div>
+
+    <section class="global">
+      <h2>Global average, both paths</h2>
+      <p class="hint">Click or drag on this chart to jump to a year.</p>
+      <svg id="global"></svg>
+    </section>
+
+    <p class="note">Each square is a 5°×5° area colored by how much warmer (red) or cooler (blue) its yearly average
+      temperature is than its own 1850–1900 average. Hover a square to see its full history. Before 2015 both paths show the same
+      historical simulation, so the scenario toggle only changes years 2015–2100.</p>
+    <p class="source">Data: CMIP6, NCAR CESM2 (run r4i1p1f1), monthly near-surface air temperature (tas), historical + SSP1-2.6 + SSP5-8.5,
+      from the Google Cloud CMIP6 public dataset. Land outline: Natural Earth via world-atlas.</p>
+
+    <article class="writeup">
+      <h2>Write-up</h2>
+
+      <h3>Design rationale</h3>
+      <p><strong>Why a map.</strong> Our question starts with "where," so geography is the main encoding: position on the map is
+        location on Earth. We used the Equal Earth projection because it keeps areas true. In our exploratory
+        matplotlib maps (plain lat/lon grid) the Arctic looked far bigger than it is, which made polar warming look more
+        widespread than it really is.</p>
+      <p><strong>Why color = change, not temperature.</strong> Our baseline map (exploratory graph 3) showed that absolute temperature is
+        dominated by the equator-to-pole gradient, which hides any change. So each square is colored by how far it moved from
+        <em>its own</em> 1850–1900 average. We used a diverging red/blue scale centered on 0 because the sign matters (warmer vs cooler).
+        The scale runs from −5 to +15 °C instead of being symmetric, because no square cools much more than 3 °C while some warm by
+        almost 20 °C. A symmetric scale would have used half the colors on values that never appear. Values above 15 are clamped and
+        the legend says "15+".</p>
+      <p><strong>Why 5° squares.</strong> The model's native grid is about 1°, which gives 55,000 cells. That is slow to redraw in SVG
+        and finer than a single model can be trusted. At 5° (2,592 squares) the patterns we care about are still clear: the Arctic,
+        land vs ocean, and the North Atlantic "warming hole" south of Greenland.</p>
+      <p><strong>Interactions.</strong></p>
+      <ul>
+        <li><strong>Year slider and Play</strong>: the story is change over time, and a static map can only show one moment. Playing
+          1850 → 2100 shows warming staying small and patchy for a century and then spreading from the poles.</li>
+        <li><strong>Scenario toggle</strong> (switching the displayed measure): the map stays in place and only the colors change, so you
+          can compare the same place under both paths without moving your eyes between two maps.</li>
+        <li><strong>Tooltip with a mini line chart</strong> (details on demand): color alone can't give an exact number or a whole history.
+          Hovering shows the exact change and that square's full 1850–2100 history under both paths.</li>
+        <li><strong>Linked global chart</strong>: shows where the current year falls on the global curve and how far apart the two
+          paths are. Clicking or dragging on it sets the year, so it doubles as a second time control.</li>
+      </ul>
+      <p><strong>Alternatives we considered.</strong> (1) Small multiples, one map per decade per scenario: with 2 paths × 25 decades
+        each map would be too small to read. (2) Two maps side by side, one per scenario: this halves the map size, and the toggle
+        does the same job. (3) An animated latitude line chart (like graph 6): it clearly shows polar amplification but averages
+        away longitude, so the warming hole disappears. We kept that as an exploratory graph.</p>
+
+      <h3>Data transformations</h3>
+      <ul>
+        <li>Source: CMIP6 monthly near-surface air temperature (<code>tas</code>) from one model, NCAR CESM2, run r4i1p1f1, read from the
+          public Google Cloud zarr stores with xarray (same method as the course notebook).</li>
+        <li>Monthly values → yearly averages (mean of the 12 months), converted from Kelvin to °C.</li>
+        <li>The ~1° grid is averaged into 5° squares, weighting each original cell by cos(latitude) so smaller high-latitude cells
+          count less.</li>
+        <li>Each square's 1850–1900 average is subtracted from every year to get the change.</li>
+        <li>The historical run (1850–2014) is joined to the start of each scenario (2015–2100).</li>
+        <li>Global averages are computed on the original grid with cos(latitude) weights. Values are rounded to 0.1 °C.</li>
+        <li>Caveats: this is a single model and a single run, so the year-to-year wiggles are natural variability inside the model, not
+          errors. CESM2 is known to warm more than most CMIP6 models, so the high-emissions numbers sit at the upper end of
+          projections.</li>
+      </ul>
+      <p>Code: <code>scripts/prepare_data.py</code> (download + processing) and <code>scripts/exploratory.py</code> (exploratory graphs).</p>
+
+      <h3>Development process</h3>
+      <!-- TODO(team): rewrite in your own words, with real numbers -->
+      <p><strong>Who did what:</strong> TODO: Ryan Namdar …; Austin Flippo …; David Li ….</p>
+      <p><strong>Time spent:</strong> TODO: about __ people-hours in total.</p>
+      <p><strong>What took the most time:</strong> TODO (for example, learning to load CMIP6 zarr data, regridding, or getting the map
+        cells and tooltip right in D3).</p>
+    </article>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" integrity="sha384-Ukv1p/xTma6P4/2bY5KzWBw+ydSpXmhCMtyciIQVDJ1RmOxtCYNMF1uXT9T63H67" crossorigin="anonymous"></script>
+  <script src="main.js"></script>
+</body>
+</html>
