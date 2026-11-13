@@ -41,66 +41,80 @@
     </section>
 
     <p class="note">Each square is a 5°×5° area colored by how much warmer (red) or cooler (blue) its yearly average
-      temperature is than its own 1850–1900 average. Hover a square to see its full history. Before 2015 both paths show the same
-      historical simulation, so the scenario toggle only changes years 2015–2100.</p>
+      temperature is than its own 1850-1900 average. Hover a square to see its full history. Before 2015 both paths show the same
+      historical simulation, so the scenario toggle only changes years 2015-2100.</p>
     <p class="source">Data: CMIP6, NCAR CESM2 (run r4i1p1f1), monthly near-surface air temperature (tas), historical + SSP1-2.6 + SSP5-8.5,
       from the Google Cloud CMIP6 public dataset. Land outline: Natural Earth via world-atlas.</p>
 
     <article class="writeup">
       <h2>Write-up</h2>
 
+      <h3>Motivation</h3>
+      <p>Our first exploratory graph was the standard one, global average temperature as a single line. In CESM2 that line is a
+        little over 1 °C above the 1850-1900 average by 2014, and by 2100 it reaches 2.4 °C on the low-emissions path and 6.4 °C on
+        the high one. The line doesn't tell you where any of that happens, though. When we mapped the high-emissions run
+        (exploratory graph 5), the warming was very uneven. Parts of the Arctic warm by more than 15 °C while a patch of the North
+        Atlantic barely warms at all. We built the page around that, so you can see which places warm fastest and how much the
+        emissions path changes it.</p>
+
       <h3>Design rationale</h3>
-      <p><strong>Why a map.</strong> Our question starts with "where," so geography is the main encoding: position on the map is
-        location on Earth. We used the Equal Earth projection because it keeps areas true. In our exploratory
-        matplotlib maps (plain lat/lon grid) the Arctic looked far bigger than it is, which made polar warming look more
-        widespread than it really is.</p>
-      <p><strong>Why color = change, not temperature.</strong> Our baseline map (exploratory graph 3) showed that absolute temperature is
-        dominated by the equator-to-pole gradient, which hides any change. So each square is colored by how far it moved from
-        <em>its own</em> 1850–1900 average. We used a diverging red/blue scale centered on 0 because the sign matters (warmer vs cooler).
-        The scale runs from −5 to +15 °C instead of being symmetric, because no square cools much more than 3 °C while some warm by
-        almost 20 °C. A symmetric scale would have used half the colors on values that never appear. Values above 15 are clamped and
-        the legend says "15+".</p>
-      <p><strong>Why 5° squares.</strong> The model's native grid is about 1°, which gives 55,000 cells. That is slow to redraw in SVG
-        and finer than a single model can be trusted. At 5° (2,592 squares) the patterns we care about are still clear: the Arctic,
-        land vs ocean, and the North Atlantic "warming hole" south of Greenland.</p>
-      <p><strong>Interactions.</strong></p>
-      <ul>
-        <li><strong>Year slider and Play</strong>: the story is change over time, and a static map can only show one moment. Playing
-          1850 → 2100 shows warming staying small and patchy for a century and then spreading from the poles.</li>
-        <li><strong>Scenario toggle</strong> (switching the displayed measure): the map stays in place and only the colors change, so you
-          can compare the same place under both paths without moving your eyes between two maps.</li>
-        <li><strong>Tooltip with a mini line chart</strong> (details on demand): color alone can't give an exact number or a whole history.
-          Hovering shows the exact change and that square's full 1850–2100 history under both paths.</li>
-        <li><strong>Linked global chart</strong>: shows where the current year falls on the global curve and how far apart the two
-          paths are. Clicking or dragging on it sets the year, so it doubles as a second time control.</li>
-      </ul>
-      <p><strong>Alternatives we considered.</strong> (1) Small multiples, one map per decade per scenario: with 2 paths × 25 decades
-        each map would be too small to read. (2) Two maps side by side, one per scenario: this halves the map size, and the toggle
-        does the same job. (3) An animated latitude line chart (like graph 6): it clearly shows polar amplification but averages
-        away longitude, so the warming hole disappears. We kept that as an exploratory graph.</p>
+      <p>The question is about "where," so the map is the main view. A square's position is its location on Earth, and its color is
+        how much that place has warmed. We went with the Equal Earth projection because it keeps areas accurate. Our exploratory
+        matplotlib maps used a plain lat/lon grid, and the Arctic looked much bigger on those than it really is, which made polar
+        warming seem to cover more of the planet than it does.</p>
+      <p>Color shows change from a baseline instead of the temperature itself. The baseline map (exploratory graph 3) plots raw
+        temperature, and all you see is a warm equator and cold poles. A few degrees of change gets lost in that. So we compare
+        each square to its own 1850-1900 average. For the palette we used D3's red/blue diverging scale (RdBu, flipped so red is
+        warmer) centered on 0, since a square can go either way and warmer and cooler should look like opposites. The scale isn't
+        symmetric. It runs from -5 to +15 °C because cooling is rare and small in this data (fewer than 0.1% of square-years fall
+        below -3 °C), while some squares warm by almost 20 °C under high emissions. A symmetric scale would have spent half its
+        colors on values that barely show up. Anything past either end gets the end color, and the legend labels the top "15+".</p>
+      <p>The model's own grid is about 1°, which is roughly 55,000 cells. That many SVG shapes redraw slowly, and it's more detail
+        than one model run can support anyway. At 5° there are 2,592 squares, and the patterns we cared about still show up: the
+        Arctic warming fastest, land warming faster than ocean, and the "warming hole" in the North Atlantic south of Greenland.</p>
+      <p>For the interactions we started with time. A static map can only show one year and our story is about change, so there's
+        a year slider and a Play button. If you play it from 1850, the warming stays small and patchy for about a century and then
+        spreads out from the poles.</p>
+      <p>The scenario buttons change the colors and leave the map where it is, so you can watch one place while you flip between
+        the two emissions paths. With two separate maps you'd be looking back and forth. Hovering is for what color can't give
+        you, which is an exact number and a history: you get the square's change for the current year and a small line chart of
+        that square from 1850 to 2100 under both paths. Below the map, the global chart plots the average for both paths and marks
+        the current year, so you can see how far apart the paths are at that point. You can also click or drag on it to set the
+        year, which makes it a second time control.</p>
+      <p>We thought about three other designs. The first was small multiples, one map per decade for each scenario, but that's 50
+        maps and each one would be too small to read. Two maps side by side would cut each map to half the width, and the toggle
+        already covers that comparison. The last idea was an animated chart of warming by latitude, like exploratory graph 6. It
+        shows polar amplification clearly, but it averages over longitude, so the warming hole disappears. We left that one as an
+        exploratory graph.</p>
 
       <h3>Data transformations</h3>
-      <ul>
-        <li>Source: CMIP6 monthly near-surface air temperature (<code>tas</code>) from one model, NCAR CESM2, run r4i1p1f1, read from the
-          public Google Cloud zarr stores with xarray (same method as the course notebook).</li>
-        <li>Monthly values → yearly averages (mean of the 12 months), converted from Kelvin to °C.</li>
-        <li>The ~1° grid is averaged into 5° squares, weighting each original cell by cos(latitude) so smaller high-latitude cells
-          count less.</li>
-        <li>Each square's 1850–1900 average is subtracted from every year to get the change.</li>
-        <li>The historical run (1850–2014) is joined to the start of each scenario (2015–2100).</li>
-        <li>Global averages are computed on the original grid with cos(latitude) weights. Values are rounded to 0.1 °C.</li>
-        <li>Caveats: this is a single model and a single run, so the year-to-year wiggles are natural variability inside the model, not
-          errors. CESM2 is known to warm more than most CMIP6 models, so the high-emissions numbers sit at the upper end of
-          projections.</li>
-      </ul>
-      <p>Code: <code>scripts/prepare_data.py</code> (download + processing) and <code>scripts/exploratory.py</code> (exploratory graphs).</p>
+      <p>Everything comes from one model, NCAR's CESM2 (run r4i1p1f1), and one variable, monthly near-surface air temperature
+        (<code>tas</code>). We read it from the public Google Cloud zarr stores with xarray, the same way the course notebook does.
+        The processing steps, in order:</p>
+      <ol>
+        <li>Averaged the 12 months of each year into one yearly value and converted Kelvin to °C.</li>
+        <li>Combined the ~1° grid cells into 5° squares with a weighted average, using cos(latitude) as the weight because cells
+          near the poles cover less area.</li>
+        <li>Subtracted each square's 1850-1900 average from every year to get the change.</li>
+        <li>Joined the historical run (1850 to 2014) to the start of each scenario (2015 to 2100).</li>
+        <li>Computed the global averages on the original grid, also weighted by cos(latitude).</li>
+      </ol>
+      <p>Square values are rounded to 0.1 °C. This is a single run of a single model, so the year-to-year wiggles are the model's
+        own natural variability. They aren't errors. CESM2 also runs warmer than most CMIP6 models, so its high-emissions numbers
+        sit near the top of the projected range. The processing code is in <code>scripts/prepare_data.py</code> and the exploratory
+        graphs are in <code>scripts/exploratory.py</code>.</p>
 
       <h3>Development process</h3>
-      <!-- TODO(team): rewrite in your own words, with real numbers -->
-      <p><strong>Who did what:</strong> TODO: Ryan Namdar …; Austin Flippo …; David Li ….</p>
-      <p><strong>Time spent:</strong> TODO: about __ people-hours in total.</p>
-      <p><strong>What took the most time:</strong> TODO (for example, learning to load CMIP6 zarr data, regridding, or getting the map
-        cells and tooltip right in D3).</p>
+      <p>Ryan Namdar built the D3 page, which covers the map, the color scale and legend, the hover tooltip with its mini chart,
+        the Play button and slider, the scenario toggle, and the linked global chart. Austin Flippo wrote the data pipeline
+        (<code>scripts/prepare_data.py</code>). It loads CESM2 from Google Cloud, builds the yearly 5° grids and baselines, and
+        writes out <code>data/temps.json</code> for the page. David Li made the six exploratory graphs
+        (<code>scripts/exploratory.py</code>) and the checkpoint video, and wrote the first draft of this write-up.</p>
+      <p>In total we spent about 15 people-hours, roughly 5 each, and most of that went into the data. We needed the same CESM2
+        run (r4i1p1f1) for the historical period and both scenarios. Finding matching runs in the Google Cloud CMIP6 catalog and
+        then getting the zarr stores to load with xarray was slow going. The other big piece was processing, especially getting
+        the JSON small enough to load quickly in a browser. We store each value as a whole number of tenths of a degree, which
+        keeps the file at about 2.4 MB. Once the data was clean, the D3 side went faster.</p>
     </article>
   </main>
 
